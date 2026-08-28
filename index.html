@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>SoundSync - Universal Multi-Device Audio Network</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            outfit: ['Outfit', 'sans-serif'],
+            mono: ['Space Grotesk', 'monospace'],
+          },
+          colors: {
+            neonCyan: '#00F5D4',
+            neonBlue: '#00BBF9',
+            neonPink: '#F72585',
+            neonPurple: '#9D4EDD',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: linear-gradient(135deg, #060911 0%, #0e162b 35%, #141f3d 70%, #070b14 100%);
+      background-attachment: fixed;
+      color: #F8FAFC;
+      min-height: 100vh;
+      overflow-x: hidden;
+      user-select: none;
+    }
+
+    /* Glassmorphism Containers with 2.5px Crisp White Borders */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 2.5px solid rgba(255, 255, 255, 0.9);
+      border-radius: 24px;
+      box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
+    }
+
+    .glass-subcard {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1.5px solid rgba(255, 255, 255, 0.35);
+      border-radius: 18px;
+    }
+
+    .laser-line {
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #00F5D4, #00BBF9, transparent);
+      box-shadow: 0 0 15px #00F5D4, 0 0 30px #00BBF9;
+      animation: scan 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes scan {
+      0% { top: 10%; opacity: 0.8; }
+      50% { opacity: 1; }
+      100% { top: 90%; opacity: 0.8; }
+    }
+
+    input[type=range] {
+      accent-color: #00F5D4;
+    }
+  </style>
+</head>
+<body class="relative flex flex-col justify-between items-center p-3 sm:p-6 text-slate-100">
+
+  <div id="emoji-layer" class="fixed inset-0 pointer-events-none z-50 overflow-hidden"></div>
+
+  <audio id="remote-audio-sink" autoplay playsinline class="hidden"></audio>
+
+  <header class="w-full max-w-4xl z-10 mb-4">
+    <div class="glass-subcard px-5 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-neonPurple to-neonCyan flex items-center justify-center shadow-lg">
+          <i class="fa-solid fa-tower-broadcast text-slate-950 font-black text-lg"></i>
+        </div>
+        <div>
+          <h1 class="font-black text-lg sm:text-xl tracking-tight bg-gradient-to-r from-neonCyan via-neonBlue to-neonPink bg-clip-text text-transparent">
+            SoundSync
+          </h1>
+          <p class="text-[10px] text-slate-400 font-mono flex items-center gap-1.5">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            UNIVERSAL APP AUDIO BROADCAST
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3 font-mono text-xs">
+        <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-semibold">
+          <i class="fa-solid fa-wifi"></i>
+          <span>Mesh Active</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="screen-home" class="w-full max-w-4xl z-10 flex flex-col gap-6">
+    <div class="glass-card p-6 sm:p-10 flex flex-col items-center justify-center text-center relative overflow-hidden">
+      
+      <div class="relative w-56 h-56 sm:w-64 sm:h-64 flex items-center justify-center mb-4">
+        <canvas id="home-canvas" width="300" height="300" class="absolute inset-0 w-full h-full"></canvas>
+        <div class="relative z-10 w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gradient-to-tr from-neonPurple/40 via-neonBlue/40 to-neonCyan/40 border-2 border-white/80 backdrop-blur-md flex flex-col items-center justify-center shadow-lg animate-pulse">
+          <i class="fa-solid fa-headphones-simple text-3xl text-white"></i>
+          <span class="text-[10px] font-mono tracking-widest text-neonCyan mt-1 font-bold">ALL-APP SYNC</span>
+        </div>
+      </div>
+
+      <h2 class="text-2xl sm:text-3xl font-black text-white mb-2">
+        Multi-Phone Surround Audio
+      </h2>
+      <p class="text-slate-300 text-sm max-w-md mx-auto mb-8">
+        Create a group, open any music or video app on your phone, and instantly stream the sound to every connected speaker node.
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full max-w-lg mb-4">
+        
+        <button id="btn-goto-host" class="group relative px-6 py-6 rounded-3xl bg-gradient-to-br from-neonCyan/20 to-neonBlue/20 hover:from-neonCyan/30 hover:to-neonBlue/30 border-[2.5px] border-white transition-all duration-300 transform active:scale-95 shadow-xl flex flex-col items-center justify-center text-center">
+          <div class="w-14 h-14 rounded-2xl bg-white text-slate-950 flex items-center justify-center mb-3 shadow-md group-hover:scale-110 transition-transform">
+            <i class="fa-solid fa-tower-broadcast text-2xl"></i>
+          </div>
+          <span class="font-extrabold text-xl tracking-wide text-white">Create Group</span>
+          <span class="text-xs text-neonCyan font-mono mt-1 font-semibold">Generate Host QR & Pick App</span>
+        </button>
+
+        <button id="btn-goto-join" class="group relative px-6 py-6 rounded-3xl bg-gradient-to-br from-neonPink/20 to-neonPurple/20 hover:from-neonPink/30 hover:to-neonPurple/30 border-[2.5px] border-white transition-all duration-300 transform active:scale-95 shadow-xl flex flex-col items-center justify-center text-center">
+          <div class="w-14 h-14 rounded-2xl bg-white text-slate-950 flex items-center justify-center mb-3 shadow-md group-hover:scale-110 transition-transform">
+            <i class="fa-solid fa-camera text-2xl"></i>
+          </div>
+          <span class="font-extrabold text-xl tracking-wide text-white">Join Group</span>
+          <span class="text-xs text-neonPink font-mono mt-1 font-semibold">Scan Host QR Code</span>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <main id="screen-host" class="w-full max-w-4xl z-10 flex flex-col gap-5 hidden">
+    <div class="flex items-center justify-between">
+      <button id="btn-host-back" class="glass-subcard px-4 py-2 hover:bg-white/10 flex items-center gap-2 text-sm font-semibold">
+        <i class="fa-solid fa-arrow-left"></i> End Session
+      </button>
+      
+      <div class="flex items-center gap-2">
+        <button id="btn-reopen-apps" class="glass-subcard px-3.5 py-1.5 hover:bg-white/15 text-xs font-bold text-neonCyan border border-neonCyan/40 flex items-center gap-2">
+          <i class="fa-solid fa-mobile-screen"></i> Switch / Open App
+        </button>
+        <div class="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neonCyan/10 border border-neonCyan/40 text-neonCyan font-mono text-xs font-bold">
+          <span class="w-2 h-2 rounded-full bg-neonCyan animate-ping"></span>
+          HOST BROADCASTING
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+      <div class="md:col-span-7 glass-card p-6 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <span class="text-[10px] font-mono text-neonBlue uppercase tracking-widest font-semibold">Live Captured Audio Stream</span>
+              <h3 id="current-track-name" class="text-xl font-extrabold text-white">Any Mobile App Audio Bridge</h3>
+            </div>
+            <span id="audio-source-badge" class="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold">
+              LIVE BROADCAST
+            </span>
+          </div>
+
+          <div class="w-full h-28 bg-black/40 rounded-2xl border border-white/20 relative overflow-hidden mb-4 flex items-center justify-center">
+            <canvas id="host-waveform-canvas" width="500" height="120" class="w-full h-full"></canvas>
+            <div class="absolute top-2 right-2 text-[10px] font-mono text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded border border-white/10">
+              WEBRTC 48kHz PCM
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 mb-4">
+            <button id="btn-mode-mic-stream" class="p-3 rounded-xl bg-neonCyan/20 border border-neonCyan text-left transition-all">
+              <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-microphone text-neonCyan"></i> High-Fi App Listener
+              </div>
+              <div class="text-[10px] text-slate-300">Broadcasts whatever sound is playing on phone</div>
+            </button>
+
+            <button id="btn-mode-tab-stream" class="p-3 rounded-xl bg-white/5 border border-white/15 hover:bg-white/10 text-left transition-all">
+              <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-display text-neonPink"></i> Screen / Media Audio
+              </div>
+              <div class="text-[10px] text-slate-400">Direct system audio capture</div>
+            </button>
+          </div>
+        </div>
+
+        <div class="space-y-4 pt-3 border-t border-white/10">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-volume-high text-slate-400 text-sm"></i>
+            <span class="text-xs text-slate-300">Master Gain:</span>
+            <input id="host-volume-slider" type="range" min="0" max="2" step="0.05" value="1.0" class="w-full h-2 rounded-lg bg-white/20 cursor-pointer" />
+            <span id="host-vol-display" class="font-mono text-xs text-slate-300 w-12 text-right">100%</span>
+          </div>
+
+          <div class="pt-3 border-t border-white/10">
+            <span class="text-[11px] font-mono text-slate-400 block mb-2">TRIGGER SYNCHRONIZED CHIMES</span>
+            <div class="grid grid-cols-4 gap-2">
+              <button class="reaction-trigger py-2 rounded-xl bg-white/5 hover:bg-white/20 border border-white/20 active:scale-90 transition-transform text-xl" data-emoji="🔥" data-tone="fire">🔥</button>
+              <button class="reaction-trigger py-2 rounded-xl bg-white/5 hover:bg-white/20 border border-white/20 active:scale-90 transition-transform text-xl" data-emoji="🎉" data-tone="party">🎉</button>
+              <button class="reaction-trigger py-2 rounded-xl bg-white/5 hover:bg-white/20 border border-white/20 active:scale-90 transition-transform text-xl" data-emoji="❤️" data-tone="love">❤️</button>
+              <button class="reaction-trigger py-2 rounded-xl bg-white/5 hover:bg-white/20 border border-white/20 active:scale-90 transition-transform text-xl" data-emoji="🔊" data-tone="bass">🔊</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="md:col-span-5 flex flex-col gap-5">
+        <div class="glass-card p-6 flex flex-col items-center text-center">
+          <span class="text-xs font-mono text-neonCyan font-bold tracking-wider mb-2">SCAN QR TO CONNECT PEERS</span>
+          
+          <div class="p-3.5 bg-white rounded-3xl shadow-xl my-2 flex items-center justify-center">
+            <div id="host-qrcode" class="w-40 h-40 flex items-center justify-center"></div>
+          </div>
+
+          <div class="mt-3 w-full">
+            <div class="flex items-center justify-between px-4 py-2 rounded-xl bg-white/5 border border-white/20">
+              <span class="text-xs font-mono text-slate-300">Room Code:</span>
+              <span id="host-room-id-display" class="font-mono font-bold text-neonCyan text-sm tracking-wider">SYNC-7741</span>
+              <button id="btn-copy-code" class="text-slate-400 hover:text-white text-xs" title="Copy code">
+                <i class="fa-regular fa-copy"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card p-5 flex-1 flex flex-col">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold text-slate-200 flex items-center gap-2">
+              <i class="fa-solid fa-mobile-screen text-neonBlue"></i> Connected Speaker Phones
+            </span>
+            <span id="connected-count-badge" class="px-2.5 py-0.5 rounded-full bg-neonCyan/20 text-neonCyan font-mono text-[11px] font-bold">
+              0 Active
+            </span>
+          </div>
+
+          <div id="peers-list" class="space-y-2 overflow-y-auto max-h-44 flex-1 pr-1">
+            <div id="no-peers-placeholder" class="text-center py-6 text-slate-400 text-xs italic">
+              No phones paired yet.<br>Point another device's camera to this QR code!
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <main id="screen-join" class="w-full max-w-lg z-10 flex flex-col gap-5 hidden">
+    <div class="flex items-center justify-between">
+      <button id="btn-join-back" class="glass-subcard px-4 py-2 hover:bg-white/10 flex items-center gap-2 text-sm font-semibold">
+        <i class="fa-solid fa-arrow-left"></i> Cancel
+      </button>
+      <span class="font-mono text-xs font-bold text-neonPink tracking-wider">IN-APP QR SCANNER</span>
+    </div>
+
+    <div class="glass-card p-6 flex flex-col items-center">
+      <h3 class="text-lg font-bold text-white mb-1">Scan Host SoundSync QR</h3>
+      <p class="text-xs text-slate-400 mb-5 text-center">Point your camera viewfinder at the Host's screen to connect audio automatically.</p>
+
+      <div class="relative w-full aspect-square max-w-[280px] rounded-3xl overflow-hidden border-[2.5px] border-white bg-black/70 shadow-2xl mb-5 flex items-center justify-center">
+        <div id="qr-reader" class="w-full h-full object-cover"></div>
+        <div class="laser-line absolute inset-x-0 pointer-events-none z-20"></div>
+        <div class="absolute inset-5 pointer-events-none border-2 border-dashed border-white/50 rounded-2xl z-10"></div>
+      </div>
+
+      <div class="w-full pt-4 border-t border-white/10 flex flex-col gap-2">
+        <span class="text-xs font-semibold text-slate-300">Or enter Room Code manually:</span>
+        <div class="flex gap-2">
+          <input id="manual-room-input" type="text" placeholder="e.g. SYNC-7741" class="flex-1 px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-slate-500 text-sm font-mono focus:outline-none focus:border-neonCyan" />
+          <button id="btn-connect-manual" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-neonPink to-neonPurple font-bold text-sm text-white hover:opacity-90 active:scale-95 transition-all">
+            Join
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <main id="screen-member" class="w-full max-w-xl z-10 flex flex-col gap-5 hidden">
+    <div class="flex items-center justify-between">
+      <button id="btn-member-disconnect" class="glass-subcard px-4 py-2 hover:bg-rose-500/20 hover:border-rose-500 text-rose-300 flex items-center gap-2 text-sm font-semibold transition-colors">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i> Disconnect
+      </button>
+
+      <div class="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 text-xs font-mono font-bold">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        LIVE SPEAKER SYNCHRONIZED
+      </div>
+    </div>
+
+    <div class="glass-card p-6 sm:p-8 flex flex-col items-center text-center">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="px-4 py-1.5 rounded-xl bg-white/5 border border-white/15 text-xs font-mono">
+          Status: <strong class="text-emerald-400">Stream Connected</strong>
+        </div>
+        <div class="px-4 py-1.5 rounded-xl bg-white/5 border border-white/15 text-xs font-mono">
+          Phase Delay: <strong id="member-acoustic-display" class="text-neonPink">0ms</strong>
+        </div>
+      </div>
+
+      <div class="relative w-48 h-48 sm:w-56 sm:h-56 flex items-center justify-center my-2">
+        <canvas id="member-canvas" width="250" height="250" class="absolute inset-0 w-full h-full"></canvas>
+        <div id="member-pulse-circle" class="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-tr from-neonPink/30 via-neonPurple/30 to-neonCyan/30 border-2 border-white/80 backdrop-blur-md flex flex-col items-center justify-center shadow-lg">
+          <i class="fa-solid fa-volume-high text-3xl text-white"></i>
+          <span class="text-[9px] font-mono text-neonPink mt-1 font-bold uppercase tracking-wider">Speaker Node</span>
+        </div>
+      </div>
+
+      <h3 id="member-track-title" class="text-xl font-bold text-white mt-4 mb-1">Receiving Host Audio Stream</h3>
+      <p class="text-xs text-slate-400 font-mono mb-6">Live Sound Playing Across Network</p>
+
+      <div class="w-full glass-subcard p-4 text-left mb-4">
+        <div class="flex justify-between items-center mb-1">
+          <label class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+            <i class="fa-solid fa-sliders text-neonCyan"></i> Room Distance Delay Calibration
+          </label>
+          <span id="delay-slider-val" class="text-xs font-mono text-neonCyan font-bold">0 ms</span>
+        </div>
+        <input id="acoustic-delay-slider" type="range" min="-100" max="100" step="2" value="0" class="w-full h-2 rounded-lg bg-white/20 cursor-pointer" />
+        <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+          <span>-100ms (Front)</span>
+          <span>0ms (Balanced)</span>
+          <span>+100ms (Rear)</span>
+        </div>
+      </div>
+
+      <div class="w-full glass-subcard p-4 text-left mb-6">
+        <div class="flex justify-between items-center mb-1">
+          <label class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+            <i class="fa-solid fa-volume-low text-neonPink"></i> Phone Speaker Volume
+          </label>
+          <span id="member-vol-val" class="text-xs font-mono text-neonPink font-bold">100%</span>
+        </div>
+        <input id="member-volume-slider" type="range" min="0" max="2" step="0.05" value="1.0" class="w-full h-2 rounded-lg bg-white/20 cursor-pointer" />
+      </div>
+
+      <div class="w-full">
+        <span class="text-[11px] font-mono text-slate-400 block mb-2 text-left">SEND SYNCED CHIME</span>
+        <div class="grid grid-cols-4 gap-2">
+          <button class="reaction-trigger py-2.5 rounded-xl bg-white/5 hover:bg-white/20 border border-white/20 active:scale-90 transition-transform text-2xl" data-emoji="🔥" data-tone="fire">🔥</button>
+          <button class="reaction-trigger py-2.5 rounded-xl bg-white/5 hover:bg-white/20 border border-white/20 active:scale-90 transition-transform text-2xl" data-emoji="🎉" data-tone="party">🎉</button>
+          <button class="reaction-trigger py-2.5 rounded-xl bg-white/5 hover:bg-white/20 border border-white/20 active:scale-90 transition-transform text-2xl" data-emoji="❤️" data-tone="love">❤️</button>
+          <button class="reaction-trigger py-2.5 rounded-xl bg-white/5 hover:bg-white/20 border border-white/20 active:scale-90 transition-transform text-2xl" data-emoji="🔊" data-tone="bass">🔊</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="modal-app-picker" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="glass-card w-full max-w-lg p-6 relative border-[2.5px] border-white shadow-2xl max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-white/15">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-neonCyan to-neonBlue flex items-center justify-center text-slate-950 text-xl font-bold">
+            <i class="fa-solid fa-mobile-screen"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-extrabold text-white">Select App to Play</h3>
+            <p class="text-[11px] text-neonCyan font-mono">Audio from this app will stream to all phones</p>
+          </div>
+        </div>
+        <button id="btn-close-app-picker" class="w-8 h-8 rounded-full glass-subcard flex items-center justify-center text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <div class="overflow-y-auto my-3 pr-1 flex-1">
+        <div class="text-xs font-semibold text-slate-300 mb-2">Installed & Popular Music / Video Apps:</div>
+        <div id="installed-apps-grid" class="grid grid-cols-2 gap-2.5 mb-4">
+          </div>
+
+        <div class="glass-subcard p-3 rounded-2xl border border-white/20">
+          <div class="text-xs font-bold text-white mb-1.5 flex items-center gap-1.5">
+            <i class="fa-solid fa-plus-circle text-neonCyan"></i> Add Any Other Mobile App
+          </div>
+          <div class="flex flex-col gap-2">
+            <input id="custom-app-name" type="text" placeholder="App Name (e.g., Wynk, VLC, JioSaavn)" class="px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder-slate-500 text-xs font-mono focus:outline-none focus:border-neonCyan" />
+            <div class="flex gap-2">
+              <input id="custom-app-url" type="text" placeholder="Package / Deep link (optional)" class="flex-1 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder-slate-500 text-xs font-mono focus:outline-none focus:border-neonCyan" />
+              <button id="btn-save-custom-app" class="px-4 py-2 rounded-xl bg-neonCyan text-slate-950 font-bold text-xs hover:opacity-90 active:scale-95 transition-all">
+                Save App
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-white/15 flex justify-between items-center">
+        <span class="text-[11px] text-slate-400">Stream captures sound automatically</span>
+        <button id="btn-start-broadcasting" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-neonCyan to-neonBlue text-slate-950 font-extrabold text-xs shadow-lg hover:opacity-90 active:scale-95 transition-all">
+          Start Streaming Now <i class="fa-solid fa-arrow-right ml-1"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="w-full max-w-4xl z-10 mt-4 text-center">
+    <p class="text-[11px] text-slate-500 font-mono">
+      SoundSync P2P Engine • High-Fidelity WebRTC Audio Broadcast Bridge
+    </p>
+  </footer>
+
+  <script>
+    // State
+    const state = {
+      currentScreen: 'screen-home',
+      isHost: false,
+      roomId: null,
+      peer: null,
+      connections: [],
+      calls: [],
+      hostConn: null,
+      audioStream: null,
+      qrScanner: null
+    };
+
+    // Default Pre-loaded Apps
+    const defaultApps = [
+      { name: 'Spotify', icon: 'fa-brands fa-spotify text-emerald-400', color: 'hover:bg-emerald-500/20 hover:border-emerald-400', appUrl: 'spotify://', webUrl: 'https://open.spotify.com' },
+      { name: 'YouTube Music', icon: 'fa-brands fa-youtube text-red-500', color: 'hover:bg-red-500/20 hover:border-red-400', appUrl: 'vnd.youtube.music://', webUrl: 'https://music.youtube.com' },
+      { name: 'JioSaavn', icon: 'fa-solid fa-music text-emerald-300', color: 'hover:bg-emerald-600/20 hover:border-emerald-400', appUrl: 'jiosaavn://', webUrl: 'https://www.jiosaavn.com' },
+      { name: 'Wynk Music', icon: 'fa-solid fa-compact-disc text-rose-400', color: 'hover:bg-rose-500/20 hover:border-rose-400', appUrl: 'wynk://', webUrl: 'https://wynk.in' },
+      { name: 'Apple Music', icon: 'fa-brands fa-apple text-pink-400', color: 'hover:bg-pink-500/20 hover:border-pink-400', appUrl: 'music://', webUrl: 'https://music.apple.com' },
+      { name: 'SoundCloud', icon: 'fa-brands fa-soundcloud text-orange-400', color: 'hover:bg-orange-500/20 hover:border-orange-400', appUrl: 'soundcloud://', webUrl: 'https://soundcloud.com' },
+      { name: 'Gaana', icon: 'fa-solid fa-radio text-red-400', color: 'hover:bg-red-500/20 hover:border-red-400', appUrl: 'gaana://', webUrl: 'https://gaana.com' },
+      { name: 'Amazon Music', icon: 'fa-brands fa-amazon text-cyan-400', color: 'hover:bg-cyan-500/20 hover:border-cyan-400', appUrl: 'amznmp3://', webUrl: 'https://music.amazon.in' },
+      { name: 'MX Player', icon: 'fa-solid fa-play text-blue-400', color: 'hover:bg-blue-500/20 hover:border-blue-400', appUrl: 'intent://#Intent;package=com.mxtech.videoplayer.ad;end', webUrl: 'https://www.mxplayer.in' },
+      { name: 'VLC Media', icon: 'fa-solid fa-film text-amber-400', color: 'hover:bg-amber-500/20 hover:border-amber-400', appUrl: 'vlc://', webUrl: 'https://www.videolan.org' }
+    ];
+
+    function loadCustomApps() {
+      const stored = localStorage.getItem('soundsync_custom_apps');
+      return stored ? JSON.parse(stored) : [];
+    }
+
+    function saveCustomApps(apps) {
+      localStorage.setItem('soundsync_custom_apps', JSON.stringify(apps));
+    }
+
+    function renderAppsDrawer() {
+      const container = document.getElementById('installed-apps-grid');
+      container.innerHTML = '';
+
+      const allApps = [...defaultApps, ...loadCustomApps()];
+
+      allApps.forEach(app => {
+        const btn = document.createElement('button');
+        btn.className = `p-3 rounded-2xl glass-subcard ${app.color || 'hover:bg-neonCyan/20 hover:border-neonCyan'} flex items-center gap-3 transition-all text-left group`;
+        btn.innerHTML = `
+          <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+            <i class="${app.icon || 'fa-solid fa-circle-play text-neonCyan'}"></i>
+          </div>
+          <div class="truncate">
+            <div class="text-xs font-bold text-white truncate">${app.name}</div>
+            <div class="text-[10px] text-slate-400">Tap to Open & Stream</div>
+          </div>
+        `;
+        btn.addEventListener('click', () => {
+          document.getElementById('modal-app-picker').classList.add('hidden');
+          document.getElementById('current-track-name').innerText = `${app.name} Audio Bridge`;
+          document.getElementById('audio-source-badge').innerText = `${app.name.toUpperCase()} STREAMING`;
+
+          // Attempt opening the native mobile app
+          if (app.appUrl) {
+            const start = Date.now();
+            window.location.href = app.appUrl;
+            setTimeout(() => {
+              if (Date.now() - start < 1800 && app.webUrl) {
+                window.open(app.webUrl, '_blank');
+              }
+            }, 1200);
+          } else if (app.webUrl) {
+            window.open(app.webUrl, '_blank');
+          }
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    // Add Custom App Handler
+    document.getElementById('btn-save-custom-app').addEventListener('click', () => {
+      const name = document.getElementById('custom-app-name').value.trim();
+      let url = document.getElementById('custom-app-url').value.trim();
+
+      if (!name) {
+        alert('Please enter an app name.');
+        return;
+      }
+      if (!url) {
+        url = `intent://#Intent;package=${name.toLowerCase().replace(/\s+/g, '')};end`;
+      }
+
+      const customApps = loadCustomApps();
+      customApps.push({
+        name,
+        icon: 'fa-solid fa-circle-play text-neonCyan',
+        appUrl: url,
+        webUrl: url.startsWith('http') ? url : ''
+      });
+      saveCustomApps(customApps);
+      renderAppsDrawer();
+
+      document.getElementById('custom-app-name').value = '';
+      document.getElementById('custom-app-url').value = '';
+    });
+
+    // Web Audio API Setup
+    let audioCtx = null;
+    let masterGain = null;
+    let delayNode = null;
+    let analyser = null;
+
+    function initAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+
+        delayNode = audioCtx.createDelay(1.0);
+        delayNode.delayTime.setValueAtTime(0.0, audioCtx.currentTime);
+
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 128;
+
+        masterGain.connect(delayNode);
+        delayNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    // Capture Real-Time Audio (Microphone Acoustic Mode / Display Audio)
+    async function startHostAudioCapture(mode = 'mic') {
+      initAudioContext();
+      try {
+        if (state.audioStream) {
+          state.audioStream.getTracks().forEach(t => t.stop());
+        }
+
+        if (mode === 'mic') {
+          // Acoustic High-Fidelity capture without voice filtering
+          state.audioStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false,
+              sampleRate: 48000,
+              channelCount: 2
+            },
+            video: false
+          });
+        } else {
+          // Display media tab / screen system loopback
+          state.audioStream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: true
+          });
+        }
+
+        // Attach local monitor
+        const source = audioCtx.createMediaStreamSource(state.audioStream);
+        source.connect(masterGain);
+
+        // Broadcast to existing peer calls
+        state.connections.forEach(conn => {
+          if (state.peer) {
+            const call = state.peer.call(conn.peer, state.audioStream);
+            state.calls.push(call);
+          }
+        });
+      } catch (err) {
+        console.warn('Audio capture notice:', err);
+      }
+    }
+
+    // Visualizers
+    const homeCanvas = document.getElementById('home-canvas');
+    const hostWaveCanvas = document.getElementById('host-waveform-canvas');
+    const memberCanvas = document.getElementById('member-canvas');
+    const homeCtx = homeCanvas.getContext('2d');
+    const hostWaveCtx = hostWaveCanvas.getContext('2d');
+    const memberCtx = memberCanvas.getContext('2d');
+    let animAngle = 0;
+
+    function renderVisualizers() {
+      requestAnimationFrame(renderVisualizers);
+      animAngle += 0.02;
+
+      let freqData = new Uint8Array(64);
+      if (analyser) {
+        analyser.getByteFrequencyData(freqData);
+      } else {
+        for (let i = 0; i < 64; i++) {
+          freqData[i] = Math.sin(animAngle + i * 0.2) * 15 + 20;
+        }
+      }
+
+      if (state.currentScreen === 'screen-home') {
+        homeCtx.clearRect(0, 0, homeCanvas.width, homeCanvas.height);
+        const cx = homeCanvas.width / 2;
+        const cy = homeCanvas.height / 2;
+        const radius = 70;
+        for (let i = 0; i < 36; i++) {
+          const angle = (i / 36) * Math.PI * 2 + animAngle * 0.5;
+          const val = (freqData[i % freqData.length] / 255) * 45;
+          const x1 = cx + Math.cos(angle) * radius;
+          const y1 = cy + Math.sin(angle) * radius;
+          const x2 = cx + Math.cos(angle) * (radius + Math.max(val, 6));
+          const y2 = cy + Math.sin(angle) * (radius + Math.max(val, 6));
+          homeCtx.strokeStyle = i % 2 === 0 ? '#00F5D4' : '#00BBF9';
+          homeCtx.lineWidth = 3;
+          homeCtx.beginPath();
+          homeCtx.moveTo(x1, y1);
+          homeCtx.lineTo(x2, y2);
+          homeCtx.stroke();
+        }
+      }
+
+      if (state.currentScreen === 'screen-host') {
+        hostWaveCtx.clearRect(0, 0, hostWaveCanvas.width, hostWaveCanvas.height);
+        const w = hostWaveCanvas.width;
+        const h = hostWaveCanvas.height;
+        const numBars = 44;
+        const barWidth = w / numBars - 2;
+        for (let i = 0; i < numBars; i++) {
+          const val = (freqData[i % freqData.length] / 255) * h * 0.85;
+          const x = i * (barWidth + 2);
+          const y = h - Math.max(val, 4);
+          hostWaveCtx.fillStyle = '#00F5D4';
+          hostWaveCtx.fillRect(x, y, barWidth, Math.max(val, 4));
+        }
+      }
+
+      if (state.currentScreen === 'screen-member') {
+        memberCtx.clearRect(0, 0, memberCanvas.width, memberCanvas.height);
+        const cx = memberCanvas.width / 2;
+        const cy = memberCanvas.height / 2;
+        const radius = 62;
+        for (let i = 0; i < 32; i++) {
+          const angle = (i / 32) * Math.PI * 2 - animAngle;
+          const val = (freqData[i % freqData.length] / 255) * 40;
+          const x1 = cx + Math.cos(angle) * radius;
+          const y1 = cy + Math.sin(angle) * radius;
+          const x2 = cx + Math.cos(angle) * (radius + Math.max(val, 8));
+          const y2 = cy + Math.sin(angle) * (radius + Math.max(val, 8));
+          memberCtx.strokeStyle = '#F72585';
+          memberCtx.lineWidth = 3.5;
+          memberCtx.beginPath();
+          memberCtx.moveTo(x1, y1);
+          memberCtx.lineTo(x2, y2);
+          memberCtx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(renderVisualizers);
+
+    // Screen Switching
+    function showScreen(screenId) {
+      ['screen-home', 'screen-host', 'screen-join', 'screen-member'].forEach(id => {
+        document.getElementById(id).classList.toggle('hidden', id !== screenId);
+      });
+      state.currentScreen = screenId;
+    }
+
+    // =======================================================================
+    // 1st BUTTON: CREATE GROUP (HOST)
+    // =======================================================================
+    document.getElementById('btn-goto-host').addEventListener('click', () => {
+      initAudioContext();
+      initHostMode();
+      renderAppsDrawer();
+
+      // Automatically popup the All-Apps selection modal
+      setTimeout(() => {
+        document.getElementById('modal-app-picker').classList.remove('hidden');
+      }, 300);
+    });
+
+    document.getElementById('btn-reopen-apps').addEventListener('click', () => {
+      renderAppsDrawer();
+      document.getElementById('modal-app-picker').classList.remove('hidden');
+    });
+
+    document.getElementById('btn-close-app-picker').addEventListener('click', () => {
+      document.getElementById('modal-app-picker').classList.add('hidden');
+    });
+
+    document.getElementById('btn-start-broadcasting').addEventListener('click', () => {
+      document.getElementById('modal-app-picker').classList.add('hidden');
+    });
+
+    document.getElementById('btn-mode-mic-stream').addEventListener('click', () => {
+      startHostAudioCapture('mic');
+    });
+
+    document.getElementById('btn-mode-tab-stream').addEventListener('click', () => {
+      startHostAudioCapture('tab');
+    });
+
+    function initHostMode() {
+      state.isHost = true;
+      state.roomId = 'SYNC-' + Math.floor(1000 + Math.random() * 9000);
+      document.getElementById('host-room-id-display').innerText = state.roomId;
+
+      // Render QR Code
+      const qrContainer = document.getElementById('host-qrcode');
+      qrContainer.innerHTML = '';
+      new QRCode(qrContainer, {
+        text: JSON.stringify({ app: 'SoundSync', roomId: state.roomId }),
+        width: 160,
+        height: 160,
+        colorDark: "#060911",
+        colorLight: "#FFFFFF",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      // Start audio capture loop
+      startHostAudioCapture('mic');
+
+      // Initialize Host Peer
+      try {
+        state.peer = new Peer(state.roomId);
+        state.peer.on('connection', (conn) => {
+          state.connections.push(conn);
+          updatePeersListUI();
+
+          // If Host has active audio stream, initiate WebRTC Media Call
+          if (state.audioStream) {
+            const call = state.peer.call(conn.peer, state.audioStream);
+            state.calls.push(call);
+          }
+
+          conn.on('data', (data) => {
+            if (data.type === 'reaction') {
+              triggerEmojiReaction(data.emoji);
+              state.connections.forEach(c => { if (c !== conn) c.send(data); });
+            }
+          });
+
+          conn.on('close', () => {
+            state.connections = state.connections.filter(c => c !== conn);
+            updatePeersListUI();
+          });
+        });
+      } catch (err) {
+        console.warn('PeerJS init:', err);
+      }
+
+      showScreen('screen-host');
+    }
+
+    function updatePeersListUI() {
+      const list = document.getElementById('peers-list');
+      const badge = document.getElementById('connected-count-badge');
+      badge.innerText = `${state.connections.length} Active`;
+
+      if (state.connections.length === 0) {
+        list.innerHTML = `<div id="no-peers-placeholder" class="text-center py-6 text-slate-400 text-xs italic">
+          No phones paired yet.<br>Point another device's camera to this QR code!
+        </div>`;
+        return;
+      }
+
+      list.innerHTML = '';
+      state.connections.forEach((conn, index) => {
+        const item = document.createElement('div');
+        item.className = 'flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs';
+        item.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-neonCyan animate-pulse"></span>
+            <span class="font-bold text-white">Speaker Node #${index + 1}</span>
+          </div>
+          <span class="text-emerald-400 font-mono text-[11px] font-semibold"><i class="fa-solid fa-waveform mr-1"></i>STREAMING</span>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    // =======================================================================
+    // 2nd BUTTON: JOIN GROUP (INBUILT CAMERA SCANNER)
+    // =======================================================================
+    document.getElementById('btn-goto-join').addEventListener('click', () => {
+      initAudioContext();
+      showScreen('screen-join');
+      startQrScanner();
+    });
+
+    function startQrScanner() {
+      try {
+        state.qrScanner = new Html5Qrcode("qr-reader");
+        state.qrScanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 200, height: 200 } },
+          (decodedText) => {
+            try {
+              const data = JSON.parse(decodedText);
+              if (data.roomId) {
+                stopQrScanner();
+                connectToHost(data.roomId);
+              }
+            } catch (e) {
+              if (decodedText.startsWith('SYNC-')) {
+                stopQrScanner();
+                connectToHost(decodedText);
+              }
+            }
+          },
+          () => {}
+        ).catch(() => {});
+      } catch (err) {}
+    }
+
+    function stopQrScanner() {
+      if (state.qrScanner) {
+        state.qrScanner.stop().then(() => {
+          state.qrScanner.clear();
+          state.qrScanner = null;
+        }).catch(() => {});
+      }
+    }
+
+    document.getElementById('btn-connect-manual').addEventListener('click', () => {
+      const code = document.getElementById('manual-room-input').value.trim();
+      if (code) {
+        stopQrScanner();
+        connectToHost(code.toUpperCase());
+      }
+    });
+
+    // Member WebRTC Audio Connection
+    function connectToHost(targetRoomId) {
+      initAudioContext();
+      state.isHost = false;
+      state.roomId = targetRoomId;
+      showScreen('screen-member');
+
+      try {
+        state.peer = new Peer();
+
+        state.peer.on('open', () => {
+          const conn = state.peer.connect(targetRoomId, { reliable: true });
+          state.hostConn = conn;
+
+          conn.on('data', (data) => {
+            if (data.type === 'reaction') {
+              triggerEmojiReaction(data.emoji);
+            }
+          });
+
+          conn.on('close', () => {
+            alert('Host closed the session.');
+            showScreen('screen-home');
+          });
+        });
+
+        // Listen for incoming live Audio Stream from Host
+        state.peer.on('call', (call) => {
+          call.answer(); // Answer without sending return video/audio
+          call.on('stream', (remoteStream) => {
+            // Attach stream to audio element & Web Audio graph
+            const audioSink = document.getElementById('remote-audio-sink');
+            audioSink.srcObject = remoteStream;
+            audioSink.play().catch(() => {});
+
+            const source = audioCtx.createMediaStreamSource(remoteStream);
+            source.connect(masterGain);
+
+            document.getElementById('member-pulse-circle').classList.add('animate-spin');
+          });
+        });
+      } catch (e) {}
+    }
+
+    // Reaction Emoji Emitters
+    function triggerEmojiReaction(emoji) {
+      const container = document.getElementById('emoji-layer');
+      const el = document.createElement('div');
+      el.innerText = emoji;
+      el.className = 'fixed text-4xl pointer-events-none transition-all duration-1000 ease-out z-50';
+      el.style.left = `${Math.random() * (window.innerWidth - 60) + 30}px`;
+      el.style.top = `${window.innerHeight - 80}px`;
+      el.style.opacity = '1';
+      container.appendChild(el);
+
+      requestAnimationFrame(() => {
+        el.style.transform = `scale(1.5) translateY(-${Math.random() * 250 + 180}px)`;
+        el.style.opacity = '0';
+      });
+
+      setTimeout(() => el.remove(), 1050);
+    }
+
+    document.querySelectorAll('.reaction-trigger').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const emoji = btn.dataset.emoji;
+        triggerEmojiReaction(emoji);
+        const msg = { type: 'reaction', emoji };
+        if (state.isHost) {
+          state.connections.forEach(conn => conn.send(msg));
+        } else if (state.hostConn) {
+          state.hostConn.send(msg);
+        }
+      });
+    });
+
+    // Volume & Calibration Sliders
+    document.getElementById('host-volume-slider').addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      if (masterGain && audioCtx) masterGain.gain.setValueAtTime(val, audioCtx.currentTime);
+      document.getElementById('host-vol-display').innerText = `${Math.round(val * 100)}%`;
+    });
+
+    document.getElementById('member-volume-slider').addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      if (masterGain && audioCtx) masterGain.gain.setValueAtTime(val, audioCtx.currentTime);
+      document.getElementById('member-vol-val').innerText = `${Math.round(val * 100)}%`;
+    });
+
+    document.getElementById('acoustic-delay-slider').addEventListener('input', (e) => {
+      const ms = parseInt(e.target.value);
+      document.getElementById('delay-slider-val').innerText = `${ms > 0 ? '+' : ''}${ms} ms`;
+      document.getElementById('member-acoustic-display').innerText = `${ms > 0 ? '+' : ''}${ms}ms`;
+      if (delayNode && audioCtx) {
+        delayNode.delayTime.setValueAtTime(Math.max(0, ms / 1000), audioCtx.currentTime);
+      }
+    });
+
+    // Navigation Buttons
+    document.getElementById('btn-host-back').addEventListener('click', () => {
+      if (state.audioStream) state.audioStream.getTracks().forEach(t => t.stop());
+      if (state.peer) state.peer.destroy();
+      showScreen('screen-home');
+    });
+
+    document.getElementById('btn-join-back').addEventListener('click', () => {
+      stopQrScanner();
+      showScreen('screen-home');
+    });
+
+    document.getElementById('btn-member-disconnect').addEventListener('click', () => {
+      if (state.hostConn) state.hostConn.close();
+      if (state.peer) state.peer.destroy();
+      showScreen('screen-home');
+    });
+
+    document.getElementById('btn-copy-code').addEventListener('click', () => {
+      navigator.clipboard.writeText(state.roomId);
+    });
+  </script>
+</body>
+</html>
